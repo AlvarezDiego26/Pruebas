@@ -37,6 +37,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
+      // Logging temporal para depuración
+      console.log("DATABASE_URL usada:", process.env.DATABASE_URL);
+
       const result = await paginate({
         model: "hotel",
         where,
@@ -46,10 +49,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         orderBy: { createdAt: "desc" },
       });
 
+      console.log("Hoteles obtenidos:", result?.data?.length ?? 0);
+
       return res.status(200).json(result);
     } catch (error: any) {
       console.error("Error fetching hotels:", error);
-      return res.status(500).json({ error: "Error al cargar los hoteles" });
+      return res.status(500).json({ error: "Error al cargar los hoteles", details: error.message });
     }
   }
 
@@ -60,12 +65,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (!name || !address || !city || !country)
           return resAuth.status(400).json({ error: "Missing fields" });
 
-        const hotel = await prisma.hotel.create({
-          data: { name, address, city, country, description },
-        });
+        try {
+          const hotel = await prisma.hotel.create({
+            data: { name, address, city, country, description },
+          });
 
-        await logAction(reqAuth.user!.id, `Hotel created: ${hotel.name}`);
-        return resAuth.status(201).json(hotel);
+          await logAction(reqAuth.user!.id, `Hotel created: ${hotel.name}`);
+          return resAuth.status(201).json(hotel);
+        } catch (error: any) {
+          console.error("Error creating hotel:", error);
+          return resAuth.status(500).json({ error: "Error al crear el hotel", details: error.message });
+        }
       },
       ["ADMIN", "SUPERADMIN"]
     );
