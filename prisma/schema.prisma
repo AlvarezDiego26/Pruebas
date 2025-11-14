@@ -7,6 +7,114 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id              Int             @id @default(autoincrement())
+  firstName       String
+  lastName        String
+  email           String          @unique
+  password        String
+  role            Role            @default(CLIENT)
+  createdAt       DateTime        @default(now())
+  isActive        Boolean         @default(true)
+  logs            Log[]
+  reviewedRefunds RefundRequest[] @relation("RefundReviewedBy")
+  refundRequests  RefundRequest[] @relation("RefundRequester")
+  reservations    Reservation[]
+}
+
+model Hotel {
+  id          Int      @id @default(autoincrement())
+  name        String
+  address     String
+  city        String
+  country     String
+  district    String?
+  stars       Int?
+  description String?
+  latitude    Float?
+  longitude   Float?
+  createdAt   DateTime @default(now())
+  rooms       Room[]
+}
+
+model Room {
+  id           Int           @id @default(autoincrement())
+  hotelId      Int
+  number       String
+  type         RoomType
+  price        Decimal       @db.Decimal(10, 2)
+  capacity     Int
+  status       RoomStatus
+  createdAt    DateTime      @default(now())
+  reservations Reservation[]
+  hotel        Hotel         @relation(fields: [hotelId], references: [id])
+
+  @@unique([hotelId, number])
+}
+
+model Reservation {
+  id            Int               @id @default(autoincrement())
+  userId        Int
+  roomId        Int
+  startDate     DateTime
+  endDate       DateTime
+  status        ReservationStatus @default(PENDING)
+  createdAt     DateTime          @default(now())
+  holdExpiresAt DateTime?
+  totalAmount   Decimal?          @db.Decimal(10, 2)
+  payment       Payment?
+  refundRequest RefundRequest?
+  room          Room              @relation(fields: [roomId], references: [id])
+  user          User              @relation(fields: [userId], references: [id])
+
+  @@index([roomId, startDate, endDate])
+}
+
+model Payment {
+  id            Int           @id @default(autoincrement())
+  reservationId Int           @unique
+  amount        Decimal       @db.Decimal(10, 2)
+  method        PaymentMethod
+  status        PaymentStatus
+  createdAt     DateTime      @default(now())
+  refundedAt    DateTime?
+  refundAmount  Decimal?      @db.Decimal(10, 2)
+  cardHolder    String?
+  cardNumber    String?
+  reservation   Reservation   @relation(fields: [reservationId], references: [id])
+}
+
+model RefundRequest {
+  id            Int          @id @default(autoincrement())
+  reservationId Int          @unique
+  userId        Int
+  status        RefundStatus @default(PENDING)
+  reason        String?
+  createdAt     DateTime     @default(now())
+  reviewedAt    DateTime?
+  reviewedById  Int?
+  reservation   Reservation  @relation(fields: [reservationId], references: [id])
+  reviewedBy    User?        @relation("RefundReviewedBy", fields: [reviewedById], references: [id])
+  user          User         @relation("RefundRequester", fields: [userId], references: [id])
+}
+
+model Log {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  action    String
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+model GlobalSetting {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  value       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+}
+
 enum Role {
   CLIENT
   ADMIN
@@ -50,110 +158,4 @@ enum RefundStatus {
   PENDING
   APPROVED
   REJECTED
-}
-
-model User {
-  id         Int           @id @default(autoincrement())
-  firstName  String
-  lastName   String
-  email      String        @unique
-  password   String
-  role       Role          @default(CLIENT)
-  createdAt  DateTime      @default(now())
-
-  reservations Reservation[]
-  logs         Log[]
-  refundRequests RefundRequest[] @relation("RefundRequester")
-  reviewedRefunds RefundRequest[] @relation("RefundReviewedBy")
-}
-
-model Hotel {
-  id          Int      @id @default(autoincrement())
-  name        String
-  address     String
-  city        String
-  country     String
-  district    String?
-  stars       Int?
-  description String?
-  latitude    Float?
-  longitude   Float?
-  createdAt   DateTime @default(now())
-
-  rooms Room[]
-}
-
-model Room {
-  id         Int       @id @default(autoincrement())
-  hotelId    Int
-  number     String
-  type       RoomType
-  price      Decimal   @db.Decimal(10,2)
-  capacity   Int
-  status     RoomStatus
-  createdAt  DateTime  @default(now())
-
-  hotel       Hotel        @relation(fields: [hotelId], references: [id])
-  reservations Reservation[]
-
-  @@unique([hotelId, number])
-}
-
-model Reservation {
-  id            Int               @id @default(autoincrement())
-  userId        Int
-  roomId        Int
-  startDate     DateTime
-  endDate       DateTime
-  status        ReservationStatus @default(PENDING)
-  createdAt     DateTime          @default(now())
-  holdExpiresAt DateTime?
-  totalAmount   Decimal?          @db.Decimal(10,2)
-
-  user    User    @relation(fields: [userId], references: [id])
-  room    Room    @relation(fields: [roomId], references: [id])
-  payment Payment?
-  refundRequest RefundRequest?
-
-  @@index([roomId, startDate, endDate])
-}
-
-model Payment {
-  id            Int           @id @default(autoincrement())
-  reservationId Int           @unique
-  amount        Decimal       @db.Decimal(10,2)
-  method        PaymentMethod
-  status        PaymentStatus
-  createdAt     DateTime      @default(now())
-  refundedAt    DateTime?
-  refundAmount  Decimal?      @db.Decimal(10,2)
-
-  cardHolder    String?
-  cardNumber    String?
-
-  reservation Reservation @relation(fields: [reservationId], references: [id])
-}
-
-model RefundRequest {
-  id             Int           @id @default(autoincrement())
-  reservationId  Int           @unique
-  userId         Int
-  status         RefundStatus  @default(PENDING)
-  reason         String?
-  createdAt      DateTime      @default(now())
-  reviewedAt     DateTime?
-  reviewedById   Int?
-
-  reservation    Reservation  @relation(fields: [reservationId], references: [id])
-  user           User         @relation("RefundRequester", fields: [userId], references: [id])
-  reviewedBy     User?        @relation("RefundReviewedBy", fields: [reviewedById], references: [id])
-}
-
-model Log {
-  id        Int      @id @default(autoincrement())
-  userId    Int?
-  action    String
-  createdAt DateTime @default(now())
-
-  user User? @relation(fields: [userId], references: [id])
 }
