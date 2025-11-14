@@ -7,7 +7,7 @@ declare global {
 const prisma = global.prisma || new PrismaClient({
   datasources: {
     db: {
-      url: process.env.DATABASE_URL, // <-- Asegúrate que use esta variable
+      url: process.env.DATABASE_URL,
     },
   },
 });
