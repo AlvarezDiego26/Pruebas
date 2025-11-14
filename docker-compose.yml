@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: reservation_app
+    restart: always
+    ports:
+      - "3000:3000"
+      - "5555:5555"
+    env_file:
+      - .env.docker
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    working_dir: /usr/src/app
+    command: >
+      sh -c "
+      echo '🚀 Ejecutando migraciones en Supabase...';
+      npx prisma migrate deploy;
+      echo '🌱 Ejecutando seed (solo si es necesario)...';
+      npx prisma db seed;
+      echo '✅ Iniciando Next.js...';
+      npm run dev
+      "
+
+volumes:
+  node_modules:
